@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Aether Merge</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="screen-orientation" content="portrait" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet" />
+    <style>
+        /* Genel Stil */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            touch-action: none; /* Dokunmatik hareketlerin varsayılan davranışını engeller */
+            -webkit-tap-highlight-color: transparent; /* Mobil tıklama vurgusunu kaldırır */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #87CEEB; /* Daha canlı bir gök mavisi */
+            color: #333;
+            display: flex;
+            flex-direction: column; /* Öğeleri dikey hizala */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden; /* Taşmayı engelle */
+            position: relative; /* Bildirim ve panel için */
+            overscroll-behavior-y: contain; /* Mobil cihazlarda yukarı çekerek yenilemeyi engeller */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* Kupa butonu ve başlık için referans nokta */
+        }
+
+        .header {
+            display: flex;
+            justify-content: flex-start; /* Başarım butonu ve başlığı yan yana hizala */
+            align-items: center; /* Öğeleri dikeyde hizala */
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #444;
+            flex-grow: 1; /* Başlığın kalan alanı kaplamasını sağla */
+            text-align: left; /* Başlığı sola hizala */
+            margin-left: 20px; /* Butonla arasında boşluk */
+        }
+
+        .scores {
+            display: flex;
+            gap: 10px;
+        }
+
+        .score-box {
+            background-color: #5F9EA0; /* Canlı maviye uyumlu yeni renk */
+            color: white;
+            padding: 12px 12px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 0.8rem;
+            color: #eee;
+        }
+
+        .score-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        /* Başarım Butonunun Yeni Konumu */
+        .achievements-button {
+            background-color: #ecc03a; /* Kupa rengi gibi */
+            border: none;
+            border-radius: 20%; /* Yuvarlak buton */
+            width: 55px;
+            height: 55px;
+            font-size: 2.2em;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+            z-index: 999; /* Diğer elementlerin üzerinde kalsın */
+            margin-right: 25px; /* Başlıkla arasında boşluk */
+            position: static; /* Akış içinde yer alsın */
+        }
+
+        .achievements-button:hover {
+            transform: scale(1.05);
+        }
+
+        .game-container {
+            width: 100%;
+            aspect-ratio: 1/1; /* Kare yapar */
+            background-color: #5F9EA0; /* Canlı maviye uyumlu yeni renk */
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            height: 100%;
+        }
+
+        .cell {
+            background-color: #E0F2F7; /* Boş hücre arka planı (yeni renk) */
+            color: #776e65; /* Boş hücre metin rengi */
+            border-radius: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 700;
+            transition: all 0.2s ease; /* Yumuşak geçişler */
+        }
+
+        #restart-btn,
+        #restart-btn-2 {
+            width: 100%;
+            padding: 15px;
+            background-color: #426A7E; /* Koyu grimsi mavi */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #restart-btn:hover,
+        #restart-btn-2:hover {
+            background-color: #365768; /* Daha koyu grimsi mavi (hover) */
+        }
+
+        #restart-btn:active,
+        #restart-btn-2:active {
+            transform: scale(0.98);
+        }
+
+        .swipe-instruction {
+            text-align: center;
+            margin: 15px 0;
+            color: #555;
+            font-size: 0.9rem;
+            display: none; /* Mobil için JS ile gösterilecek */
+        }
+
+        #game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            display: none; /* Başlangıçta gizli */
+            z-index: 1002; /* Başarım panelinin üzerinde kalsın */
+            width: 80%;
+            max-width: 300px;
+        }
+
+        #game-over h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        #final-score {
+            font-weight: 700;
+            color: #444;
+        }
+
+        /* Yeni Blok Bildirimi */
+        #new-block-notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            opacity: 0; /* Başlangıçta gizli */
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1001; /* Diğer pop-up'ların altında kalsın */
+            pointer-events: none; /* Üzerine tıklamayı engelle, oyun akışını bozmasın */
+        }
+
+        #new-block-notification.show {
+            opacity: 1;
+        }
+
+        /* Başarım Bildirimi (Unlocked Block Notification) */
+        #achievement-unlocked-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8); /* Yarı saydam koyu arka plan */
+            color: white;
+            border-radius: 30px; /* Daha yuvarlak kenarlar */
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            z-index: 1005; /* En üstte olsun */
+            pointer-events: none; /* Tıklamayı engelle */
+            padding: 35px; /* Daha büyük padding */
+            width: 80%; /* Mobil uyumluluk için genişlik */
+            max-width: 350px; /* Maksimum genişlik */
+            display: flex; /* İçeriği ortalamak için flex kullan */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #achievement-unlocked-notification.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1); /* Animasyonla büyüme */
+        }
+
+        .unlocked-block {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 85px; /* Daha büyük blok */
+            min-height: 85px; /* Daha büyük blok */
+            border-radius: 20px; /* Biraz daha yuvarlak */
+            font-size: 2.5em; /* Daha büyük yazı */
+            font-weight: bold;
+            color: #f9f6f2; /* Yazı rengi */
+            margin-bottom: 15px; /* Altındaki mesajla boşluk */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Gölge efekti */
+        }
+
+        .unlocked-message {
+            font-size: 1.2em; /* Daha büyük mesaj yazısı */
+            font-weight: normal;
+            color: #f0f0f0; /* Hafif gri mesaj rengi */
+        }
+
+
+        /* Başarımlar Paneli - Tam Ekran */
+        .achievements-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* Tam ekran, yarı saydam siyah */
+            color: white;
+            padding: 20px;
+            display: none; /* Başlangıçta gizli */
+            z-index: 1003; /* En üstte olsun */
+            overflow-y: auto;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Başlık yukarıda kalsın */
+            box-sizing: border-box; /* Padding dahil boyutu hesapla */
+        }
+
+        .achievements-panel.open {
+            display: flex; /* Flex yaparak içeriği ortalayabiliriz */
+        }
+
+        .achievements-panel h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #f0c340;
+            width: 100%;
+        }
+
+        .achievements-panel ul {
+            list-style: none;
+            padding: 0;
+            width: 90%;
+            max-width: 600px; /* Okunurluk için max genişlik */
+            display: grid; /* Grid sistemi */
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Esnek sütunlar */
+            gap: 15px; /* Kutucuklar arası boşluk */
+            justify-content: center; /* Kutucukları ortala */
+        }
+
+        .achievements-panel li {
+            background-color: #ffffff; /* Başarım arka planı beyaz */
+            color: #333; /* Metin rengi koyu gri */
+            border: 1px solid #ccc; /* Kenarlık ekle */
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.9em;
+            min-height: 100px; /* Kutucukların minimum yüksekliği */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Hafif gölge */
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .achievement-icon {
+            font-size: 2em; /* Kilit boyutu */
+            margin-bottom: 5px;
+        }
+
+        .achievement-name {
+            font-weight: bold;
+            margin-top: 5px;
+            color: #555; /* Başlık rengi */
+            font-size: 1em;
+        }
+
+        .achievement-target {
+            font-size: 1em;
+            font-weight: bold;
+            color: #f0c340; /* Hedef sayı rengi */
+            margin-top: 5px;
+        }
+
+        .achievement-completed {
+            background-color: #e6ffe6; /* Tamamlanmış başarımlar için çok açık yeşil */
+            border-color: #4CAF50; /* Tamamlandığında yeşil kenarlık */
+        }
+
+        .close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8em; /* Biraz büyütüldü */
+            cursor: pointer;
+            z-index: 1004; /* Kapat butonu panelin üstünde kalsın */
+        }
+
+        /* Tile Colors - Yeni Mavi/Mor Palet */
+        .cell, .unlocked-block { color: #776e65; background-color: #E0F2F7; /* Çok açık buz mavisi */ }
+        .cell, .unlocked-block { font-size: 2rem; }
+        .cell, .unlocked-block { font-weight: bold; }
+        .cell.tile-2, .unlocked-block.tile-2 { background-color: #E0F2F7; /* Çok açık buz mavisi */ }
+        .cell.tile-4, .unlocked-block.tile-4 { background-color: #D3EEF5; /* Açık su mavisi */ }
+        .cell.tile-8, .unlocked-block.tile-8 { background-color: #BFD7ED; /* Soluk Mavi */ color: #444; }
+        .cell.tile-16, .unlocked-block.tile-16 { background-color: #A7C3E1; /* Açık Çelik Mavisi */ color: #444; }
+        .cell.tile-32, .unlocked-block.tile-32 { background-color: #8EAACD; /* Kayrak Grisi Mavisi */ color: #444; }
+        .cell.tile-64, .unlocked-block.tile-64 { background-color: #7691BA; /* Mat Mavi */ color: #f9f6f2; }
+        .cell.tile-128, .unlocked-block.tile-128 { background-color: #5D78A8; /* Daha Koyu Mavi */ color: #f9f6f2; font-size: 1.8rem; }
+        .cell.tile-256, .unlocked-block.tile-256 { background-color: #455F95; /* Derin Mavi */ color: #f9f6f2; font-size: 1.8rem; }
+        .cell.tile-512, .unlocked-block.tile-512 { background-color: #2D4682; /* Çok Derin Mavi */ color: #f9f6f2; font-size: 1.8rem; }
+        .cell.tile-1024, .unlocked-block.tile-1024 { background-color: #162D6F; /* Daha Koyu Derin Mavi */ color: #f9f6f2; font-size: 1.5rem; }
+        .cell.tile-2048, .unlocked-block.tile-2048 { background-color: #00145C; /* Lacivert */ color: #f9f6f2; font-size: 1.5rem; }
+        .cell.tile-4096, .unlocked-block.tile-4096 { background-color: #2E0A5D; /* Koyu Mor */ color: #f9f6f2; font-size: 1.5rem; }
+        .cell.tile-8192, .unlocked-block.tile-8192 { background-color: #4B0082; /* İndigo */ color: #f9f6f2; font-size: 1.5rem; }
+        .cell.tile-16384, .unlocked-block.tile-16384 { background-color: #6A0DAD; /* Koyu Orkide */ color: #f9f6f2; font-size: 1.4rem; }
+        .cell.tile-32768, .unlocked-block.tile-32768 { background-color: #8A2BE2; /* Mavi Menekşe */ color: #f9f9f2; font-size: 1.4rem; }
+        .cell.tile-65536, .unlocked-block.tile-65536 { background-color: #9932CC; /* Orta Mor */ color: #f9f9f2; font-size: 1.3rem; }
+        .cell.tile-131072, .unlocked-block.tile-131072 { background-color: #BA55D3; /* Açık Orkide */ color: #f9f6f2; font-size: 1.3rem; }
+        .cell.tile-262144, .unlocked-block.tile-262144 { background-color: #DA70D6; /* Orkide */ color: #f9f9f2; font-size: 1.2rem; }
+        .cell.tile-524288, .unlocked-block.tile-524288 { background-color: #DDA0DD; /* Erik */ color: #f9f9f2; font-size: 1.2rem; }
+        .cell.tile-1048576, .unlocked-block.tile-1048576 { background-color: #EE82EE; /* Menekşe */ color: #f9f9f2; font-size: 1.1rem; }
+        .cell.tile-2097152, .unlocked-block.tile-2097152 { background-color: #9400D3; /* Koyu Menekşe */ color: #f9f9f2; font-size: 1.1rem; }
+
+
+        /* Animasyonlar */
+        .new-tile {
+            animation: appear 0.2s;
+        }
+
+        .merged-tile {
+            animation: pop 0.2s;
+        }
+
+        @keyframes appear {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+                margin-left: 10px;
+            }
+
+            .achievements-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1.8em;
+                margin-right: 10px;
+            }
+
+            .cell {
+                font-size: 1.5rem;
+            }
+
+            .cell.tile-128, .unlocked-block.tile-128 {
+                font-size: 1.3rem;
+            }
+
+            .cell.tile-1024, .unlocked-block.tile-1024 {
+                font-size: 1.1rem;
+            }
+
+            .swipe-instruction {
+                display: block; /* Mobil cihazlarda göster */
+            }
+
+            .achievements-panel {
+                padding: 10px; /* Daha az padding mobil için */
+            }
+            .close-button {
+                top: 10px;
+                right: 10px;
+                font-size: 1.5em;
+            }
+
+            .achievements-panel ul {
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Daha küçük ekranlarda daha küçük kutular */
+                gap: 10px;
+            }
+
+            .achievements-panel li {
+                min-height: 80px;
+                font-size: 0.8em;
+            }
+
+            .achievement-icon {
+                font-size: 1.5em;
+                margin-bottom: 2px;
+            }
+
+            /* Mobil için bildirim kutusu düzenlemeleri */
+            #achievement-unlocked-notification {
+                padding: 20px;
+                width: 90%;
+            }
+
+            .unlocked-block {
+                min-width: 60px;
+                min-height: 60px;
+                font-size: 2em;
+            }
+
+            .unlocked-message {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button id="achievements-btn" class="achievements-button">🏆</button>
+            <h1>2048</h1>
+            <div class="scores">
+                <div class="score-box">
+                    <div class="score-label">SKOR</div>
+                    <div id="current-score" class="score-value">0</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-label">REKOR</div>
+                    <div id="high-score" class="score-value">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <div class="grid"></div>
+        </div>
+
+        <div class="swipe-instruction">
+            <p>Parmağını kaydır: yukarı, aşağı, sağ, sol</p>
+        </div>
+
+        <button id="restart-btn">Yeni Oyun</button>
+    </div>
+
+    <div id="game-over">
+        <h2>Oyun Bitti!</h2>
+        <p>Skorun: <span id="final-score">0</span></p>
+        <button id="restart-btn-2">Tekrar Dene</button>
+    </div>
+
+    <div id="new-block-notification" class="notification-popup"></div>
+
+    <div id="achievement-unlocked-notification">
+        <div id="unlocked-block-value" class="unlocked-block"></div>
+        <div class="unlocked-message">Yeni blok açıldı!</div>
+    </div>
+
+    <div id="achievements-panel" class="achievements-panel">
+        <h2>Başarımlar</h2>
+        <ul id="achievements-list">
+            </ul>
+        <button id="close-achievements" class="close-button">X</button>
+    </div>
+
+    <audio id="confetti-sound" src="confetti.mp3" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.querySelector('.grid');
+            const size = 4;
+            let board = [];
+            let currentScore = 0;
+            let highScore = parseInt(localStorage.getItem('2048-highScore')) || 0;
+            const currentScoreElem = document.getElementById('current-score');
+            const highScoreElem = document.getElementById('high-score');
+            const finalScoreElem = document.getElementById('final-score');
+            const gameOverElem = document.getElementById('game-over');
+
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            let isGamePaused = false;
+
+            const newBlockNotificationElem = document.getElementById('new-block-notification');
+            const achievementUnlockedNotificationElem = document.getElementById('achievement-unlocked-notification');
+            const unlockedBlockValueElem = document.getElementById('unlocked-block-value');
+            const confettiSound = document.getElementById('confetti-sound');
+
+            const achievementsBtn = document.getElementById('achievements-btn');
+            const achievementsPanel = document.getElementById('achievements-panel');
+            const closeAchievementsBtn = document.getElementById('close-achievements');
+            const achievementsList = document.getElementById('achievements-list');
+            const achievements = [];
+            for (let i = 4; i <= 21; i++) { // Başarımlar 16'dan başlayacak şekilde güncellendi!
+                const value = Math.pow(2, i);
+                achievements.push({
+                    id: `reach${value}`,
+                    name: value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."),
+                    achieved: false, // Başlangıçta hepsi tamamlanmamış
+                    value: value,
+                    icon: '🔒'
+                });
+            }
+
+            let notificationTimeout;
+            function showNotification(message) {
+                clearTimeout(notificationTimeout);
+                newBlockNotificationElem.textContent = message;
+                newBlockNotificationElem.classList.add('show');
+
+                notificationTimeout = setTimeout(() => {
+                    newBlockNotificationElem.classList.remove('show');
+                }, 1500);
+            }
+
+            let achievementNotificationTimeout;
+            function showAchievementUnlockNotification(blockValue) {
+                isGamePaused = true;
+                if (confettiSound) {
+                    confettiSound.currentTime = 0;
+                    confettiSound.play().catch(e => console.error("Konfeti sesi çalınamadı:", e));
+                }
+
+                clearTimeout(achievementNotificationTimeout);
+                unlockedBlockValueElem.textContent = blockValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                unlockedBlockValueElem.className = `unlocked-block tile-${blockValue}`;
+                achievementUnlockedNotificationElem.classList.add('show');
+
+                achievementNotificationTimeout = setTimeout(() => {
+                    achievementUnlockedNotificationElem.classList.remove('show');
+                    isGamePaused = false;
+                }, 3000);
+            }
+
+            function loadAchievements() {
+                const savedAchievements = localStorage.getItem('2048-achievements');
+                if (savedAchievements) {
+                    try {
+                        const loaded = JSON.parse(savedAchievements);
+                        // Mevcut başarımlar listesini (achievements array) döngüye al
+                        achievements.forEach(ach => {
+                            const found = loaded.find(lAch => lAch.id === ach.id);
+                            if (found) {
+                                // Eğer kaydedilmiş veride bulunduysa, durumunu güncelle
+                                ach.achieved = found.achieved;
+                            }
+                            // Eğer kaydedilmiş veride bulunamazsa, varsayılan 'achieved: false' durumu korunur.
+                            // Bu, "Hedef 64" gibi başarımların yanlışlıkla sıfırlanmasını engellemeye yardımcı olur.
+                        });
+                    } catch (e) {
+                        console.error("Kaydedilmiş başarımlar yüklenirken hata oluştu:", e);
+                        // Hata durumunda, başarımlar varsayılan (false) durumda kalır.
+                    }
+                }
+                renderAchievements();
+            }
+
+            function saveAchievements() {
+                localStorage.setItem('2048-achievements', JSON.stringify(achievements));
+            }
+
+            function checkAchievements() {
+                achievements.filter(a => !a.achieved).forEach(ach => {
+                    let reachedValue = false;
+                    for (let i = 0; i < size; i++) {
+                        for (let j = 0; j < size; j++) {
+                            if (board && board[i] && board[i][j] === ach.value) {
+                                reachedValue = true;
+                                break;
+                            }
+                        }
+                        if (reachedValue) break;
+                    }
+                    if (reachedValue) {
+                        ach.achieved = true;
+                        showAchievementUnlockNotification(ach.value);
+                        saveAchievements();
+                        renderAchievements();
+                    }
+                });
+            }
+
+            function renderAchievements() {
+                achievementsList.innerHTML = '';
+                achievements.forEach(ach => {
+                    const li = document.createElement('li');
+                    li.classList.add('achievement-box');
+
+                    const iconSpan = document.createElement('span');
+                    iconSpan.classList.add('achievement-icon');
+
+                    const nameDiv = document.createElement('div');
+                    nameDiv.classList.add('achievement-name');
+
+                    const targetDiv = document.createElement('div');
+                    targetDiv.classList.add('achievement-target');
+
+                    if (ach.achieved) {
+                        const blockDiv = document.createElement('div');
+                        blockDiv.classList.add('unlocked-block', `tile-${ach.value}`);
+                        blockDiv.textContent = ach.name;
+                        li.appendChild(blockDiv);
+                        nameDiv.textContent = ach.name;
+                        li.appendChild(nameDiv);
+                        li.classList.add('achievement-completed');
+                    } else {
+                        iconSpan.textContent = ach.icon;
+                        li.appendChild(iconSpan);
+                        targetDiv.textContent = `Hedef: ${ach.name}`;
+                        li.appendChild(targetDiv);
+                    }
+
+                    achievementsList.appendChild(li);
+                });
+            }
+
+            function createBoard() {
+                grid.innerHTML = '';
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('cell');
+                        cell.setAttribute('data-row', i);
+                        cell.setAttribute('data-col', j);
+                        grid.appendChild(cell);
+                    }
+                }
+            }
+
+            function updateScore(value) {
+                currentScore += value;
+                currentScoreElem.textContent = currentScore;
+                if (currentScore > highScore) {
+                    highScore = currentScore;
+                    highScoreElem.textContent = highScore;
+                    localStorage.setItem('2048-highScore', highScore);
+                }
+            }
+
+            function saveGame() {
+                localStorage.setItem('2048-board', JSON.stringify(board));
+                localStorage.setItem('2048-currentScore', currentScore);
+            }
+
+            function loadGame() {
+                const savedBoard = localStorage.getItem('2048-board');
+                const savedScore = localStorage.getItem('2048-currentScore');
+                if (savedBoard !== null && savedScore !== null) {
+                    board = JSON.parse(savedBoard);
+                    currentScore = parseInt(savedScore);
+                    currentScoreElem.textContent = currentScore;
+                    highScoreElem.textContent = highScore;
+                    createBoard();
+                    renderBoard();
+                } else {
+                    initializeGame();
+                }
+            }
+
+            function restartGame() {
+                currentScore = 0;
+                currentScoreElem.textContent = '0';
+                gameOverElem.style.display = 'none';
+                localStorage.removeItem('2048-board');
+                localStorage.removeItem('2048-currentScore');
+                isGamePaused = false;
+                initializeGame();
+            }
+
+            function initializeGame() {
+                board = Array(size).fill().map(() => Array(size).fill(0));
+                createBoard();
+                placeRandom();
+                placeRandom();
+                renderBoard();
+                saveGame();
+            }
+
+            function placeRandom() {
+                const emptyCells = [];
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        if (board[i][j] === 0) emptyCells.push({ i, j });
+                    }
+                }
+                if (emptyCells.length > 0) {
+                    const { i, j } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                    const newValue = Math.random() < 0.9 ? 2 : 4;
+                    board[i][j] = newValue;
+                }
+            }
+
+            function renderBoard() {
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const cell = document.querySelector(`[data-row="${i}"][data-col="${j}"]`);
+                        const prevValue = cell.dataset.value;
+                        const currentValue = board[i][j];
+                        if (currentValue !== 0) {
+                            cell.dataset.value = currentValue;
+                            cell.textContent = currentValue;
+                            cell.className = `cell tile-${currentValue}`;
+
+                            if (!prevValue) {
+                                cell.classList.add('new-tile');
+                            } else if (parseInt(prevValue) !== currentValue) {
+                                cell.classList.add('merged-tile');
+                            }
+                        } else {
+                            cell.textContent = '';
+                            delete cell.dataset.value;
+                            cell.className = 'cell';
+                        }
+                    }
+                }
+
+                setTimeout(() => {
+                    document.querySelectorAll('.cell').forEach(cell => {
+                        cell.classList.remove('merged-tile', 'new-tile');
+                    });
+                }, 200);
+                saveGame();
+                checkAchievements();
+            }
+
+            function move(direction) {
+                if (isGamePaused) return;
+                let moved = false;
+                const newBoard = JSON.parse(JSON.stringify(board));
+
+                const operateLine = (line, isMerging) => {
+                    let filteredLine = line.filter(num => num !== 0);
+                    if (isMerging) {
+                        for (let i = 0; i < filteredLine.length - 1; i++) {
+                            if (filteredLine[i] === filteredLine[i + 1]) {
+                                filteredLine[i] *= 2;
+                                updateScore(filteredLine[i]);
+                                filteredLine.splice(i + 1, 1);
+                                i++;
+                            }
+                        }
+                    }
+
+                    while (filteredLine.length < size) {
+                        filteredLine.push(0);
+                    }
+
+                    return filteredLine;
+                };
+
+                if (direction === 'up' || direction === 'down') {
+                    for (let j = 0; j < size; j++) {
+                        let column = [];
+                        for (let i = 0; i < size; i++) column.push(board[i][j]);
+
+                        let operatedColumn;
+                        if (direction === 'up') {
+                            operatedColumn = operateLine(column, true);
+                        } else {
+                            operatedColumn = operateLine(column.reverse(), true).reverse();
+                        }
+
+                        for (let i = 0; i < size; i++) {
+                            if (newBoard[i][j] !== operatedColumn[i]) {
+                                newBoard[i][j] = operatedColumn[i];
+                                moved = true;
+                            }
+                        }
+                    }
+                } else if (direction === 'left' || direction === 'right') {
+                    for (let i = 0; i < size; i++) {
+                        let row = board[i];
+                        let operatedRow;
+                        if (direction === 'left') {
+                            operatedRow = operateLine(row, true);
+                        } else {
+                            operatedRow = operateLine(row.reverse(), true).reverse();
+                        }
+
+                        for (let j = 0; j < size; j++) {
+                            if (newBoard[i][j] !== operatedRow[j]) {
+                                newBoard[i][j] = operatedRow[j];
+                                moved = true;
+                            }
+                        }
+                    }
+                }
+
+                if (moved) {
+                    board = newBoard;
+                    placeRandom();
+                    renderBoard();
+                    if (!checkGameOver()) {
+                        saveGame();
+                    }
+                    // Titreşim geri bildirimi
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50); // 50 milisaniye titreşim
+                    }
+                } else if (checkGameOver()) {
+                    showGameOver();
+                }
+            }
+
+            function checkGameOver() {
+                let isFull = true;
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        if (board[i][j] === 0) {
+                            isFull = false;
+                            break;
+                        }
+                    }
+                    if (!isFull) break;
+                }
+
+                if (!isFull) return false;
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const current = board[i][j];
+                        if (j < size - 1 && current === board[i][j + 1]) return false;
+                        if (i < size - 1 && current === board[i + 1][j]) return false;
+                    }
+                }
+
+                return true;
+            }
+
+            function showGameOver() {
+                finalScoreElem.textContent = currentScore;
+                gameOverElem.style.display = 'block';
+                isGamePaused = true;
+            }
+
+            // Klavye olayları (masaüstü için)
+            document.addEventListener('keydown', (e) => {
+                if (isGamePaused && gameOverElem.style.display !== 'block') {
+                    return;
+                }
+                switch (e.key) {
+                    case 'ArrowUp':
+                        move('up');
+                        break;
+                    case 'ArrowDown':
+                        move('down');
+                        break;
+                    case 'ArrowLeft':
+                        move('left');
+                        break;
+                    case 'ArrowRight':
+                        move('right');
+                        break;
+                }
+            });
+            // Dokunmatik olaylar (mobil için)
+            grid.addEventListener('touchstart', (e) => {
+                if (isGamePaused) return;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                e.preventDefault();
+            }, { passive: false });
+
+            grid.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+            grid.addEventListener('touchend', (e) => {
+                if (isGamePaused) return;
+
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+
+                const dx = touchEndX - touchStartX;
+                const dy = touchEndY - touchStartY;
+
+                // Minimum kaydırma eşiği (yanlışlıkla dokunmaları filtrelemek için)
+                const swipeThreshold = 30;
+
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > swipeThreshold) { // Yatay kaydırma
+                    if (dx > 0) {
+                        move('right');
+                    } else {
+                        move('left');
+                    }
+                } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > swipeThreshold) { // Dikey kaydırma
+                    if (dy > 0) {
+                        move('down');
+                    } else {
+                        move('up');
+                    }
+                }
+            });
+            // Buton olayları
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+            document.getElementById('restart-btn-2').addEventListener('click', restartGame);
+            // Başarımlar butonu ve paneli olayları
+            achievementsBtn.addEventListener('click', () => {
+                achievementsPanel.classList.add('open');
+                isGamePaused = true;
+                renderAchievements();
+            });
+            closeAchievementsBtn.addEventListener('click', () => {
+                achievementsPanel.classList.remove('open');
+                isGamePaused = false;
+            });
+            // Service Worker Kaydı (PWA için)
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js')
+                        .then(registration => {
+                            console.log('Service Worker registered:', registration);
+                        })
+                        .catch(error => {
+                            console.error('Service Worker registration failed:', error);
+                        });
+                });
+            }
+
+            // Ekran yönlendirmesini kilitlemeye çalış
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(e => console.log('Yönlendirme kilitlenemedi (normal):', e));
+            } else if (window.screen.lockOrientation) { // Eski tarayıcılar için
+                window.screen.lockOrientation('portrait').catch(e => console.log('Yönlendirme kilitlenemedi (eski):', e));
+            }
+
+
+            // Sayfa yüklendiğinde oyunu başlat ve başarımları yükle
+            loadGame();
+            loadAchievements();
+        });
+    </script>
+</body>
+</html>
